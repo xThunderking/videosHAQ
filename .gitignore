@@ -1,0 +1,5 @@
+
+# Private uploaded videos (never version)
+storage/uploads/private_videos/*/*
+!storage/uploads/private_videos/.htaccess
+!storage/uploads/private_videos/*/.gitkeep
