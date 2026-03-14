@@ -7,11 +7,29 @@ require_once dirname(__DIR__, 2) . '/config/app.php';
 secure_session_start();
 
 $error = '';
+$requestError = '';
+$requestSuccess = '';
+$openRequestModal = false;
+$toastError = '';
+$toastSuccess = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    enforce_post_csrf();
-
     $action = (string) ($_POST['action'] ?? '');
+
+    if (!verify_csrf()) {
+        if ($action === 'logout') {
+            $_SESSION = [];
+            session_destroy();
+            header('Location: index.php');
+            exit;
+        }
+
+        $error = 'La sesion expiro. Recarga la pagina e intenta nuevamente.';
+        $toastError = $error;
+        goto render;
+    }
+
+    enforce_post_csrf();
 
     if ($action === 'logout') {
         $_SESSION = [];
@@ -23,6 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'login') {
         if (throttle_is_limited('area_login')) {
             $error = 'Demasiados intentos. Espera unos minutos e intenta de nuevo.';
+            $toastError = $error;
             goto render;
         }
 
@@ -39,6 +58,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         throttle_hit('area_login');
         $error = 'Codigo o area incorrectos.';
+        $toastError = $error;
+    }
+
+    if ($action === 'request_code') {
+        if (throttle_is_limited('request_code')) {
+            $requestError = 'Demasiadas solicitudes. Espera unos minutos e intenta de nuevo.';
+            $openRequestModal = true;
+            goto render;
+        }
+
+        $name = trim((string) ($_POST['request_name'] ?? ''));
+        $areaKey = strtolower(trim((string) ($_POST['request_area'] ?? '')));
+        $employeeNumber = trim((string) ($_POST['request_employee_number'] ?? ''));
+
+        if ($name === '' || $areaKey === '' || $employeeNumber === '') {
+            $requestError = 'Completa nombre, area y numero de empleado.';
+            $toastError = $requestError;
+            $openRequestModal = true;
+        } elseif (mb_strlen($name) < 3 || mb_strlen($name) > 120) {
+            $requestError = 'El nombre debe tener entre 3 y 120 caracteres.';
+            $toastError = $requestError;
+            $openRequestModal = true;
+        } elseif (!area_exists($areaKey)) {
+            $requestError = 'El area seleccionada no es valida.';
+            $toastError = $requestError;
+            $openRequestModal = true;
+        } elseif (!preg_match('/^[A-Za-z0-9-]{3,30}$/', $employeeNumber)) {
+            $requestError = 'Numero de empleado invalido. Usa solo letras, numeros o guion.';
+            $toastError = $requestError;
+            $openRequestModal = true;
+        } else {
+            $queued = queue_access_code_request($name, get_area_label($areaKey), $employeeNumber);
+
+            if ($queued) {
+                trigger_mail_queue_worker_async();
+                throttle_reset('request_code');
+                $requestSuccess = 'Solicitud enviada correctamente a SISTEMAS.';
+                $toastSuccess = $requestSuccess;
+            } else {
+                throttle_hit('request_code');
+                $requestError = 'No se pudo enviar la solicitud por correo. Intenta nuevamente.';
+                $toastError = $requestError;
+                $openRequestModal = true;
+            }
+        }
     }
 }
 
@@ -91,24 +155,30 @@ send_security_headers();
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="public/assets/css/main.css">
+    <link rel="stylesheet" href="public/assets/css/main.css?v=20260313-2">
 </head>
-<body>
+<body<?php echo $openRequestModal ? ' class="modal-open"' : ''; ?>>
 <div class="bg-layer"></div>
 <main class="layout">
     <header class="hero">
         <p class="kicker">Plataforma Interna</p>
-        <h1>Visualizacion de Videos por Area</h1>
-        <p class="subtitle">Hospital Angeles Queretaro: acceso restringido por codigo para visualizacion de videos de capacitacion por area.</p>
+        <h1>Hospital Angeles Queretaro</h1>
+        <p class="subtitle">Visualizacion de Videos por Area</p>
     </header>
 
     <?php if (!$hasAccess): ?>
         <section class="card login-card">
+            <div class="login-top-actions">
+                <a class="systems-link top-right" href="systems.php">SISTEMAS</a>
+            </div>
+            <?php if ($toastError !== ''): ?>
+                <div id="portalToastError" class="hidden" data-toast-kind="error" data-toast-message="<?php echo htmlspecialchars($toastError, ENT_QUOTES, 'UTF-8'); ?>"></div>
+            <?php endif; ?>
+            <?php if ($toastSuccess !== ''): ?>
+                <div id="portalToastSuccess" class="hidden" data-toast-kind="success" data-toast-message="<?php echo htmlspecialchars($toastSuccess, ENT_QUOTES, 'UTF-8'); ?>"></div>
+            <?php endif; ?>
             <h2>Ingresar</h2>
             <p>Selecciona el area e ingresa el codigo de acceso.</p>
-            <?php if ($error !== ''): ?>
-                <div class="alert"><?php echo htmlspecialchars($error, ENT_QUOTES, 'UTF-8'); ?></div>
-            <?php endif; ?>
             <form method="post" autocomplete="off">
                 <?php echo csrf_input(); ?>
                 <input type="hidden" name="action" value="login">
@@ -125,7 +195,37 @@ send_security_headers();
 
                 <button type="submit">Entrar</button>
             </form>
-            <a class="systems-link" href="systems.php">SISTEMAS</a>
+            <button type="button" id="openRequestCodeModal" class="request-code-btn">SOLICITAR CODIGO A SISTEMAS</button>
+
+            <div id="requestCodeModal" class="modal <?php echo $openRequestModal ? '' : 'hidden'; ?>" role="dialog" aria-modal="true" aria-labelledby="requestCodeTitle">
+                <div class="modal-card">
+                    <div class="modal-header">
+                        <h3 id="requestCodeTitle">Solicitar codigo a SISTEMAS</h3>
+                        <button type="button" class="modal-close" data-close-request-modal>&times;</button>
+                    </div>
+
+                    <form method="post" autocomplete="off">
+                        <?php echo csrf_input(); ?>
+                        <input type="hidden" name="action" value="request_code">
+
+                        <label for="request_name">Nombre completo</label>
+                        <input id="request_name" name="request_name" type="text" maxlength="120" required>
+
+                        <label for="request_area">Area</label>
+                        <select id="request_area" name="request_area" required>
+                            <option value="">Seleccionar</option>
+                            <?php foreach ($availableAreas as $areaRow): ?>
+                                <option value="<?php echo htmlspecialchars($areaRow['area_key'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($areaRow['area_label'], ENT_QUOTES, 'UTF-8'); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+
+                        <label for="request_employee_number">Numero de empleado</label>
+                        <input id="request_employee_number" name="request_employee_number" type="text" maxlength="30" required>
+
+                        <button type="submit">Solicitar</button>
+                    </form>
+                </div>
+            </div>
         </section>
     <?php else: ?>
         <section class="card dashboard-card">
@@ -137,12 +237,12 @@ send_security_headers();
                 <form method="post">
                     <?php echo csrf_input(); ?>
                     <input type="hidden" name="action" value="logout">
-                    <button type="submit" class="ghost">Cerrar sesion</button>
+                    <button type="submit" class="ghost logout-btn">Cerrar sesion</button>
                 </form>
             </div>
 
             <?php if (count($videos) === 0): ?>
-                <p class="empty">No hay videos cargados en esta area. Coloca archivos mp4, webm u ogg en la carpeta privada correspondiente.</p>
+                <p class="empty">No hay videos cargados en esta area.</p>
             <?php else: ?>
                 <div class="player-wrap">
                     <video id="player" data-stream-token="<?php echo htmlspecialchars($streamToken, ENT_QUOTES, 'UTF-8'); ?>" disablePictureInPicture playsinline preload="metadata">
@@ -197,6 +297,8 @@ send_security_headers();
         </section>
     <?php endif; ?>
 </main>
+<div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
+<script src="public/assets/js/portal.js?v=20260313-1"></script>
 <script src="public/assets/js/player.js"></script>
 </body>
 </html>

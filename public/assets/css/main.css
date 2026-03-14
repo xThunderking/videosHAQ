@@ -82,6 +82,12 @@ h1 {
     padding: 24px;
 }
 
+.login-top-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+}
+
 label {
     display: block;
     margin: 16px 0 8px;
@@ -127,6 +133,17 @@ button.ghost {
     width: auto;
 }
 
+button.ghost.logout-btn {
+    color: #ffffff !important;
+    border: 1px solid #8f1f1f !important;
+    background: linear-gradient(90deg, #b72424, #d43b3b) !important;
+}
+
+button.ghost.logout-btn:hover {
+    background: linear-gradient(90deg, #a61f1f, #bf2f2f) !important;
+    filter: none;
+}
+
 .alert {
     margin-top: 12px;
     background: #fdecec;
@@ -156,6 +173,15 @@ button.ghost {
 
 .systems-link:hover {
     text-decoration: underline;
+}
+
+.systems-link.top-right {
+    margin-top: 0;
+}
+
+.request-code-btn {
+    margin-top: 10px;
+    background: linear-gradient(90deg, #106c7f, #19a5b9);
 }
 
 .inline-exit-form {

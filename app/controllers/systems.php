@@ -11,9 +11,20 @@ $adminError = '';
 $adminSuccess = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    enforce_post_csrf();
-
     $action = (string) ($_POST['action'] ?? '');
+
+    if (!verify_csrf()) {
+        if ($action === 'systems_logout' || $action === 'exit_to_portal') {
+            unset($_SESSION['systems_access']);
+            header('Location: index.php');
+            exit;
+        }
+
+        $authError = 'La sesion expiro. Recarga la pagina e intenta nuevamente.';
+        goto render;
+    }
+
+    enforce_post_csrf();
 
     if ($action === 'systems_login') {
         if (throttle_is_limited('systems_login')) {
@@ -339,7 +350,7 @@ send_security_headers();
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="public/assets/css/main.css">
+    <link rel="stylesheet" href="public/assets/css/main.css?v=20260313-2">
 </head>
 <body>
 <div class="bg-layer"></div>
@@ -370,7 +381,7 @@ send_security_headers();
                 <form method="post">
                     <?php echo csrf_input(); ?>
                     <input type="hidden" name="action" value="systems_logout">
-                    <button type="submit" class="ghost">Cerrar sesion SISTEMAS</button>
+                    <button type="submit" class="ghost logout-btn">Cerrar sesion SISTEMAS</button>
                 </form>
             </div>
 

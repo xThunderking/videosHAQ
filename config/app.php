@@ -20,6 +20,19 @@ const DB_NAME = 'videoshaq';
 const DB_USER = 'root';
 const DB_PASS = '';
 const APP_EXPORT_ENCRYPTION_KEY = 'CHANGE_THIS_KEY_FOR_PRODUCTION_32CHARS_MIN';
+const SMTP_HOST = 'smtp.gmail.com';
+const SMTP_PORT = 465;
+const SMTP_FROM_EMAIL = 'siscomha@gmail.com';
+const SMTP_FROM_NAME = 'Sistemas HAQ';
+const SMTP_USERNAME = 'siscomha@gmail.com';
+const SMTP_APP_PASSWORD = 'elxh aedz ndnn tvyo';
+const ACCESS_REQUEST_TO_EMAIL = 'ignacio.rayo@saludangeles.mx';
+const MAIL_QUEUE_DIR = __DIR__ . '/../storage/mail_queue';
+const MAIL_QUEUE_PENDING_DIR = MAIL_QUEUE_DIR . '/pending';
+const MAIL_QUEUE_PROCESSING_DIR = MAIL_QUEUE_DIR . '/processing';
+const MAIL_QUEUE_FAILED_DIR = MAIL_QUEUE_DIR . '/failed';
+const MAIL_QUEUE_MAX_RETRIES = 5;
+const MAIL_QUEUE_WORKER_TOKEN = 'haq_mail_worker_20260313';
 
 function secure_session_start(): void
 {
@@ -145,6 +158,278 @@ function throttle_hit(string $key): void
 function throttle_reset(string $key): void
 {
     unset($_SESSION['login_throttle'][$key]);
+}
+
+function smtp_read_response($socket): string
+{
+    $response = '';
+
+    while (!feof($socket)) {
+        $line = fgets($socket, 515);
+        if (!is_string($line)) {
+            break;
+        }
+
+        $response .= $line;
+
+        if (strlen($line) < 4 || $line[3] !== '-') {
+            break;
+        }
+    }
+
+    return $response;
+}
+
+function smtp_expect_code($socket, array $expected): bool
+{
+    $response = smtp_read_response($socket);
+    if ($response === '' || strlen($response) < 3) {
+        return false;
+    }
+
+    $code = (int) substr($response, 0, 3);
+    return in_array($code, $expected, true);
+}
+
+function smtp_send_command($socket, string $command, array $expected): bool
+{
+    $written = fwrite($socket, $command . "\r\n");
+    if ($written === false) {
+        return false;
+    }
+
+    return smtp_expect_code($socket, $expected);
+}
+
+function smtp_send_plain_email(string $toEmail, string $subject, string $body): bool
+{
+    $socket = @stream_socket_client(
+        'ssl://' . SMTP_HOST . ':' . SMTP_PORT,
+        $errorNumber,
+        $errorMessage,
+        20,
+        STREAM_CLIENT_CONNECT
+    );
+
+    if (!is_resource($socket)) {
+        return false;
+    }
+
+    stream_set_timeout($socket, 20);
+
+    $ok = smtp_expect_code($socket, [220])
+        && smtp_send_command($socket, 'EHLO localhost', [250])
+        && smtp_send_command($socket, 'AUTH LOGIN', [334])
+        && smtp_send_command($socket, base64_encode(SMTP_USERNAME), [334])
+        && smtp_send_command($socket, base64_encode(str_replace(' ', '', SMTP_APP_PASSWORD)), [235])
+        && smtp_send_command($socket, 'MAIL FROM:<' . SMTP_FROM_EMAIL . '>', [250])
+        && smtp_send_command($socket, 'RCPT TO:<' . $toEmail . '>', [250, 251])
+        && smtp_send_command($socket, 'DATA', [354]);
+
+    if (!$ok) {
+        @fclose($socket);
+        return false;
+    }
+
+    $normalizedBody = str_replace(["\r\n", "\r"], "\n", $body);
+    $normalizedBody = str_replace("\n.", "\n..", $normalizedBody);
+    $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
+
+    $headers = [];
+    $headers[] = 'From: ' . SMTP_FROM_NAME . ' <' . SMTP_FROM_EMAIL . '>';
+    $headers[] = 'To: <' . $toEmail . '>';
+    $headers[] = 'Subject: ' . $encodedSubject;
+    $headers[] = 'MIME-Version: 1.0';
+    $headers[] = 'Content-Type: text/plain; charset=UTF-8';
+    $headers[] = 'Content-Transfer-Encoding: 8bit';
+
+    $payload = implode("\r\n", $headers) . "\r\n\r\n" . str_replace("\n", "\r\n", $normalizedBody) . "\r\n.\r\n";
+    $written = fwrite($socket, $payload);
+
+    if ($written === false || !smtp_expect_code($socket, [250])) {
+        @fclose($socket);
+        return false;
+    }
+
+    smtp_send_command($socket, 'QUIT', [221]);
+    @fclose($socket);
+    return true;
+}
+
+function send_access_code_request_email(string $name, string $areaLabel, string $employeeNumber): bool
+{
+    $subject = 'Solicitud de codigo de acceso - Videos HAQ';
+    $body = "Se recibio una nueva solicitud de codigo de acceso.\n\n"
+        . 'Nombre: ' . $name . "\n"
+        . 'Area: ' . $areaLabel . "\n"
+        . 'Numero de empleado: ' . $employeeNumber . "\n"
+        . 'Fecha: ' . date('Y-m-d H:i:s') . "\n"
+        . 'IP: ' . (string) ($_SERVER['REMOTE_ADDR'] ?? 'desconocida') . "\n";
+
+    return smtp_send_plain_email(ACCESS_REQUEST_TO_EMAIL, $subject, $body);
+}
+
+function ensure_mail_queue_directories(): void
+{
+    $dirs = [MAIL_QUEUE_DIR, MAIL_QUEUE_PENDING_DIR, MAIL_QUEUE_PROCESSING_DIR, MAIL_QUEUE_FAILED_DIR];
+
+    foreach ($dirs as $dir) {
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+    }
+}
+
+function queue_access_code_request(string $name, string $areaLabel, string $employeeNumber): bool
+{
+    ensure_mail_queue_directories();
+
+    $payload = [
+        'name' => $name,
+        'area_label' => $areaLabel,
+        'employee_number' => $employeeNumber,
+        'ip' => (string) ($_SERVER['REMOTE_ADDR'] ?? 'desconocida'),
+        'requested_at' => date('Y-m-d H:i:s'),
+        'attempts' => 0,
+    ];
+
+    $filename = MAIL_QUEUE_PENDING_DIR . '/req_' . date('Ymd_His') . '_' . bin2hex(random_bytes(6)) . '.json';
+    $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+    if (!is_string($json)) {
+        return false;
+    }
+
+    return file_put_contents($filename, $json, LOCK_EX) !== false;
+}
+
+function trigger_mail_queue_worker_async(): void
+{
+    $hostHeader = (string) ($_SERVER['HTTP_HOST'] ?? '127.0.0.1');
+    $host = parse_url('http://' . $hostHeader, PHP_URL_HOST);
+    if (!is_string($host) || $host === '') {
+        $host = '127.0.0.1';
+    }
+
+    $port = (int) ($_SERVER['SERVER_PORT'] ?? 80);
+    if ($port <= 0) {
+        $port = 80;
+    }
+
+    $isHttps = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+    if ($isHttps && $port === 80) {
+        $port = 443;
+    }
+
+    $basePath = rtrim(str_replace('\\', '/', dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/index.php'))), '/');
+    $endpointPath = ($basePath === '' ? '' : $basePath) . '/mail_queue_worker.php?token=' . rawurlencode(MAIL_QUEUE_WORKER_TOKEN);
+
+    $target = ($isHttps ? 'ssl://' : 'tcp://') . $host;
+    $socket = @stream_socket_client($target . ':' . $port, $errorNumber, $errorMessage, 1.5, STREAM_CLIENT_CONNECT);
+
+    if (!is_resource($socket)) {
+        return;
+    }
+
+    stream_set_timeout($socket, 1);
+
+    $request = "GET " . $endpointPath . " HTTP/1.1\r\n"
+        . 'Host: ' . $hostHeader . "\r\n"
+        . "Connection: Close\r\n\r\n";
+
+    @fwrite($socket, $request);
+    @fclose($socket);
+}
+
+function process_access_request_mail_queue(int $maxJobs = 5): int
+{
+    ensure_mail_queue_directories();
+
+    $lockPath = MAIL_QUEUE_DIR . '/worker.lock';
+    $lockHandle = @fopen($lockPath, 'c+');
+
+    if (!is_resource($lockHandle)) {
+        return 0;
+    }
+
+    if (!flock($lockHandle, LOCK_EX | LOCK_NB)) {
+        fclose($lockHandle);
+        return 0;
+    }
+
+    $processed = 0;
+    $files = glob(MAIL_QUEUE_PENDING_DIR . '/*.json');
+
+    if (!is_array($files)) {
+        $files = [];
+    }
+
+    sort($files);
+
+    foreach ($files as $filePath) {
+        if ($processed >= $maxJobs) {
+            break;
+        }
+
+        if (!is_string($filePath) || !is_file($filePath)) {
+            continue;
+        }
+
+        $processingPath = MAIL_QUEUE_PROCESSING_DIR . '/' . basename($filePath);
+        if (!@rename($filePath, $processingPath)) {
+            continue;
+        }
+
+        $content = file_get_contents($processingPath);
+        $data = is_string($content) ? json_decode($content, true) : null;
+
+        if (!is_array($data)) {
+            @unlink($processingPath);
+            continue;
+        }
+
+        $name = trim((string) ($data['name'] ?? ''));
+        $areaLabel = trim((string) ($data['area_label'] ?? ''));
+        $employeeNumber = trim((string) ($data['employee_number'] ?? ''));
+        $attempts = (int) ($data['attempts'] ?? 0);
+
+        if ($name === '' || $areaLabel === '' || $employeeNumber === '') {
+            @unlink($processingPath);
+            continue;
+        }
+
+        $sent = send_access_code_request_email($name, $areaLabel, $employeeNumber);
+
+        if ($sent) {
+            @unlink($processingPath);
+            $processed++;
+            continue;
+        }
+
+        $attempts++;
+        $data['attempts'] = $attempts;
+        $updatedJson = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        if (!is_string($updatedJson)) {
+            @unlink($processingPath);
+            continue;
+        }
+
+        if ($attempts >= MAIL_QUEUE_MAX_RETRIES) {
+            $failedPath = MAIL_QUEUE_FAILED_DIR . '/' . basename($processingPath);
+            @file_put_contents($failedPath, $updatedJson, LOCK_EX);
+            @unlink($processingPath);
+            continue;
+        }
+
+        @file_put_contents($processingPath, $updatedJson, LOCK_EX);
+        @rename($processingPath, MAIL_QUEUE_PENDING_DIR . '/' . basename($processingPath));
+    }
+
+    flock($lockHandle, LOCK_UN);
+    fclose($lockHandle);
+
+    return $processed;
 }
 
 function db(): PDO
