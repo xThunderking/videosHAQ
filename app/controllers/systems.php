@@ -350,9 +350,9 @@ send_security_headers();
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="public/assets/css/main.css?v=20260313-2">
+    <link rel="stylesheet" href="public/assets/css/main.css?v=20260317-1">
 </head>
-<body>
+<body class="systems-page">
 <div class="bg-layer"></div>
 <main class="layout">
     <?php if (!$systemsAccess): ?>
