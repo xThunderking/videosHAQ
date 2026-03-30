@@ -350,19 +350,19 @@ send_security_headers();
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="public/assets/css/main.css?v=20260317-1">
+    <link rel="stylesheet" href="public/assets/css/main.css?v=20260330-3">
 </head>
 <body class="systems-page">
 <div class="bg-layer"></div>
 <main class="layout">
     <?php if (!$systemsAccess): ?>
-        <section class="card login-card">
+        <section class="card login-card systems-login-card">
             <h2>Acceso SISTEMAS</h2>
             <p>Ingresa el codigo de SISTEMAS para administrar videos.</p>
             <?php if ($authError !== ''): ?>
                 <div class="alert"><?php echo htmlspecialchars($authError, ENT_QUOTES, 'UTF-8'); ?></div>
             <?php endif; ?>
-            <form method="post" autocomplete="off">
+            <form method="post" class="systems-login-form" autocomplete="off">
                 <?php echo csrf_input(); ?>
                 <input type="hidden" name="action" value="systems_login">
                 <label for="systems_code">Codigo SISTEMAS</label>
@@ -372,7 +372,7 @@ send_security_headers();
             <a class="systems-link" href="index.php">Volver al acceso de videos</a>
         </section>
     <?php else: ?>
-        <section class="card dashboard-card systems-dashboard">
+        <section class="card dashboard-card systems-dashboard systems-panel-card">
             <div class="dashboard-header">
                 <div>
                     <p class="chip">Sesion activa</p>
@@ -393,21 +393,22 @@ send_security_headers();
             <?php endif; ?>
 
             <?php require __DIR__ . '/../views/systems/dashboard.php'; ?>
-            <?php require __DIR__ . '/../views/systems/modal-create-area.php'; ?>
-            <?php require __DIR__ . '/../views/systems/modal-edit-area.php'; ?>
-            <?php require __DIR__ . '/../views/systems/modal-edit-video.php'; ?>
-            <?php require __DIR__ . '/../views/systems/modal-upload-video.php'; ?>
             <form method="post" class="inline-exit-form">
                 <?php echo csrf_input(); ?>
                 <input type="hidden" name="action" value="exit_to_portal">
                 <button type="submit" class="systems-link-button">Ir al portal de visualizacion</button>
             </form>
         </section>
+
+        <?php require __DIR__ . '/../views/systems/modal-create-area.php'; ?>
+        <?php require __DIR__ . '/../views/systems/modal-edit-area.php'; ?>
+        <?php require __DIR__ . '/../views/systems/modal-edit-video.php'; ?>
+        <?php require __DIR__ . '/../views/systems/modal-upload-video.php'; ?>
     <?php endif; ?>
 </main>
 <?php if ($systemsAccess): ?>
 <div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
-<script src="public/assets/js/systems.js"></script>
+<script src="public/assets/js/systems.js?v=20260330-2"></script>
 <?php endif; ?>
 </body>
 </html>

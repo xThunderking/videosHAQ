@@ -5,6 +5,7 @@
     var toastStack = document.getElementById('toastStack');
     var toastError = document.getElementById('portalToastError');
     var toastSuccess = document.getElementById('portalToastSuccess');
+    var lastTrigger = null;
 
     function showToast(message, kind, durationMs) {
         if (!message) {
@@ -51,14 +52,33 @@
     function openModal() {
         modal.classList.remove('hidden');
         document.body.classList.add('modal-open');
+
+        var modalCard = modal.querySelector('.modal-card');
+        if (modalCard) {
+            modalCard.scrollTop = 0;
+        }
+
+        var firstFocusable = modal.querySelector('input:not([type="hidden"]), select, textarea, button:not([disabled])');
+        if (firstFocusable) {
+            window.setTimeout(function () {
+                firstFocusable.focus();
+            }, 0);
+        }
     }
 
     function closeModal() {
         modal.classList.add('hidden');
         document.body.classList.remove('modal-open');
+
+        if (lastTrigger && typeof lastTrigger.focus === 'function') {
+            window.setTimeout(function () {
+                lastTrigger.focus();
+            }, 0);
+        }
     }
 
     openButton.addEventListener('click', function () {
+        lastTrigger = openButton;
         openModal();
     });
 

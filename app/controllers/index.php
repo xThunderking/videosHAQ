@@ -155,7 +155,7 @@ send_security_headers();
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="public/assets/css/main.css?v=20260317-1">
+    <link rel="stylesheet" href="public/assets/css/main.css?v=20260330-3">
 </head>
 <body class="<?php echo $openRequestModal ? 'index-page modal-open' : 'index-page'; ?>">
 <div class="bg-layer"></div>
@@ -167,7 +167,7 @@ send_security_headers();
     </header>
 
     <?php if (!$hasAccess): ?>
-        <section class="card login-card">
+        <section class="card login-card portal-login-card">
             <div class="login-top-actions">
                 <a class="systems-link top-right" href="systems.php">SISTEMAS</a>
             </div>
@@ -179,7 +179,7 @@ send_security_headers();
             <?php endif; ?>
             <h2>Ingresar</h2>
             <p>Selecciona el area e ingresa el codigo de acceso.</p>
-            <form method="post" autocomplete="off">
+            <form method="post" class="portal-login-form" autocomplete="off">
                 <?php echo csrf_input(); ?>
                 <input type="hidden" name="action" value="login">
                 <label for="area">Area</label>
@@ -196,37 +196,40 @@ send_security_headers();
                 <button type="submit">Entrar</button>
             </form>
             <button type="button" id="openRequestCodeModal" class="request-code-btn">SOLICITAR CODIGO A SISTEMAS</button>
-
-            <div id="requestCodeModal" class="modal <?php echo $openRequestModal ? '' : 'hidden'; ?>" role="dialog" aria-modal="true" aria-labelledby="requestCodeTitle">
-                <div class="modal-card">
-                    <div class="modal-header">
-                        <h3 id="requestCodeTitle">Solicitar codigo a SISTEMAS</h3>
-                        <button type="button" class="modal-close" data-close-request-modal>&times;</button>
-                    </div>
-
-                    <form method="post" autocomplete="off">
-                        <?php echo csrf_input(); ?>
-                        <input type="hidden" name="action" value="request_code">
-
-                        <label for="request_name">Nombre completo</label>
-                        <input id="request_name" name="request_name" type="text" maxlength="120" required>
-
-                        <label for="request_area">Area</label>
-                        <select id="request_area" name="request_area" required>
-                            <option value="">Seleccionar</option>
-                            <?php foreach ($availableAreas as $areaRow): ?>
-                                <option value="<?php echo htmlspecialchars($areaRow['area_key'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($areaRow['area_label'], ENT_QUOTES, 'UTF-8'); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-
-                        <label for="request_employee_number">Numero de empleado</label>
-                        <input id="request_employee_number" name="request_employee_number" type="text" maxlength="30" required>
-
-                        <button type="submit">Solicitar</button>
-                    </form>
-                </div>
-            </div>
+            <p class="small-note">Si no cuentas con codigo, solicita acceso con tus datos de colaborador.</p>
         </section>
+
+        <div id="requestCodeModal" class="modal request-code-modal <?php echo $openRequestModal ? '' : 'hidden'; ?>" role="dialog" aria-modal="true" aria-labelledby="requestCodeTitle">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3 id="requestCodeTitle">Solicitar codigo a SISTEMAS</h3>
+                    <button type="button" class="modal-close" data-close-request-modal>&times;</button>
+                </div>
+
+                <p class="small-note">Completa tus datos para enviar la solicitud directamente al area de SISTEMAS.</p>
+
+                <form method="post" class="request-code-form" autocomplete="off">
+                    <?php echo csrf_input(); ?>
+                    <input type="hidden" name="action" value="request_code">
+
+                    <label for="request_name">Nombre completo</label>
+                    <input id="request_name" name="request_name" type="text" maxlength="120" required>
+
+                    <label for="request_area">Area</label>
+                    <select id="request_area" name="request_area" required>
+                        <option value="">Seleccionar</option>
+                        <?php foreach ($availableAreas as $areaRow): ?>
+                            <option value="<?php echo htmlspecialchars($areaRow['area_key'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($areaRow['area_label'], ENT_QUOTES, 'UTF-8'); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+
+                    <label for="request_employee_number">Numero de empleado</label>
+                    <input id="request_employee_number" name="request_employee_number" type="text" maxlength="30" required>
+
+                    <button type="submit">Solicitar</button>
+                </form>
+            </div>
+        </div>
     <?php else: ?>
         <section class="card dashboard-card">
             <div class="dashboard-header">
@@ -298,7 +301,7 @@ send_security_headers();
     <?php endif; ?>
 </main>
 <div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
-<script src="public/assets/js/portal.js?v=20260313-1"></script>
+<script src="public/assets/js/portal.js?v=20260330-1"></script>
 <script src="public/assets/js/player.js"></script>
 </body>
 </html>

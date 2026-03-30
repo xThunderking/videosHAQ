@@ -20,6 +20,7 @@
     var toastStack = document.getElementById('toastStack');
     var serverToastError = document.getElementById('serverToastError');
     var serverToastSuccess = document.getElementById('serverToastSuccess');
+    var lastTrigger = null;
 
     var form = document.getElementById('chunkUploadForm');
     var progressBar = document.getElementById('uploadProgressBar');
@@ -83,6 +84,18 @@
 
         modal.classList.remove('hidden');
         document.body.classList.add('modal-open');
+
+        var modalCard = modal.querySelector('.modal-card');
+        if (modalCard) {
+            modalCard.scrollTop = 0;
+        }
+
+        var firstFocusable = modal.querySelector('input:not([type="hidden"]), select, textarea, button:not([disabled])');
+        if (firstFocusable) {
+            window.setTimeout(function () {
+                firstFocusable.focus();
+            }, 0);
+        }
     }
 
     function closeModal(modal) {
@@ -95,6 +108,12 @@
         var openModals = document.querySelectorAll('.modal:not(.hidden)');
         if (openModals.length === 0) {
             document.body.classList.remove('modal-open');
+
+            if (lastTrigger && typeof lastTrigger.focus === 'function') {
+                window.setTimeout(function () {
+                    lastTrigger.focus();
+                }, 0);
+            }
         }
     }
 
@@ -104,6 +123,7 @@
             if (!modalId) {
                 return;
             }
+            lastTrigger = trigger;
             openModalById(modalId);
         });
     });
@@ -127,9 +147,12 @@
             return;
         }
 
-        document.querySelectorAll('.modal:not(.hidden)').forEach(function (modal) {
-            closeModal(modal);
-        });
+        var openModals = document.querySelectorAll('.modal:not(.hidden)');
+        if (openModals.length === 0) {
+            return;
+        }
+
+        closeModal(openModals[openModals.length - 1]);
     });
 
     confirmButtons.forEach(function (button) {
