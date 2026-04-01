@@ -208,7 +208,7 @@ $saved = register_video([
     'title' => $resolvedTitle,
     'original_name' => $originalName,
     'stored_name' => $storedName,
-    'relative_path' => 'storage/uploads/private_videos/' . $area . '/' . $storedName,
+    'relative_path' => $area . '/' . $storedName,
     'mime_type' => $detectedMime,
     'file_size' => $size,
 ]);

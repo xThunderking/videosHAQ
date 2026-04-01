@@ -247,8 +247,8 @@ send_security_headers();
             <?php if (count($videos) === 0): ?>
                 <p class="empty">No hay videos cargados en esta area.</p>
             <?php else: ?>
-                <div class="player-wrap">
-                    <video id="player" data-stream-token="<?php echo htmlspecialchars($streamToken, ENT_QUOTES, 'UTF-8'); ?>" disablePictureInPicture playsinline preload="metadata">
+                <div class="player-wrap" id="playerWrap">
+                    <video id="player" data-stream-token="<?php echo htmlspecialchars($streamToken, ENT_QUOTES, 'UTF-8'); ?>" disablePictureInPicture disableRemotePlayback controlsList="nodownload noplaybackrate noremoteplayback" playsinline preload="metadata" draggable="false">
                         <source id="playerSource" src="stream.php?id=<?php echo $firstVideoId; ?>&token=<?php echo rawurlencode($streamToken); ?>" type="video/mp4">
                         Tu navegador no soporta video HTML5.
                     </video>

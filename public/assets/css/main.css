@@ -335,6 +335,14 @@ video {
     max-height: 62vh;
 }
 
+video::-webkit-media-controls {
+    display: none !important;
+}
+
+video::-webkit-media-controls-enclosure {
+    display: none !important;
+}
+
 .player-controls {
     margin-top: 10px;
     display: flex;

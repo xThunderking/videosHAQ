@@ -7,7 +7,7 @@ const SYSTEM_AREA_KEY = 'systems';
 
 const ALLOWED_VIDEO_EXTENSIONS = ['mp4', 'webm', 'ogg'];
 const ALLOWED_VIDEO_MIME_TYPES = ['video/mp4', 'video/webm', 'video/ogg'];
-const PRIVATE_VIDEO_DIR = __DIR__ . '/../storage/uploads/private_videos';
+const PRIVATE_VIDEO_DIR = 'D:/VIDEOSHAQ';
 const MAX_VIDEO_UPLOAD_BYTES = 10 * 1024 * 1024 * 1024;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOGIN_ATTEMPT_WINDOW_SECONDS = 300;

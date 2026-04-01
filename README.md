@@ -28,7 +28,7 @@ Tambien incluye acceso especial:
 - `public/assets/js/player.js`: JS del reproductor
 - `public/assets/js/systems.js`: JS del panel SISTEMAS
 - `database/schema.sql`: script SQL de tablas y codigos iniciales
-- `storage/uploads/private_videos/`: almacenamiento privado por area
+- `D:/VIDEOSHAQ/`: almacenamiento privado por area (fuera del proyecto)
 
 ## Configurar MySQL
 
@@ -53,9 +53,9 @@ Definidos en la tabla `area_codes` (script `database/schema.sql`):
 
 Coloca los videos en estas carpetas:
 
-- `storage/uploads/private_videos/admision/`
-- `storage/uploads/private_videos/calidad/`
-- `storage/uploads/private_videos/enfermeria/`
+- `D:/VIDEOSHAQ/admision/`
+- `D:/VIDEOSHAQ/calidad/`
+- `D:/VIDEOSHAQ/enfermeria/`
 
 Tambien puedes subirlos desde `systems.php` con el codigo de SISTEMAS.
 
@@ -99,7 +99,7 @@ Despues reinicia Apache.
 - Acceso separado para SISTEMAS.
 - Codigos y enlaces de videos almacenados en MySQL.
 - Los videos no se exponen como archivos publicos directos.
-- Carpeta `storage/uploads/private_videos/` bloqueada por `.htaccess`.
+- Carpeta de videos en `D:/VIDEOSHAQ/` (fuera del webroot, no expuesta directamente).
 - Reproduccion via `stream.php` con sesion activa.
 - Se oculto boton de descarga en el reproductor (`nodownload`).
 

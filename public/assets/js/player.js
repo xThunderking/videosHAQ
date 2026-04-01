@@ -1,5 +1,6 @@
 (function () {
     var player = document.getElementById('player');
+    var playerWrap = document.getElementById('playerWrap');
     var source = document.getElementById('playerSource');
     var list = document.querySelectorAll('.video-item');
     var playToggle = document.getElementById('playToggle');
@@ -13,8 +14,36 @@
     var streamToken = player.getAttribute('data-stream-token') || '';
 
     player.controls = false;
+    player.setAttribute('controlsList', 'nodownload noplaybackrate noremoteplayback');
+    player.setAttribute('disablePictureInPicture', '');
+    player.setAttribute('disableRemotePlayback', '');
+    player.disablePictureInPicture = true;
     player.addEventListener('contextmenu', function (event) {
         event.preventDefault();
+    });
+    player.addEventListener('dragstart', function (event) {
+        event.preventDefault();
+    });
+    player.addEventListener('dblclick', function (event) {
+        event.preventDefault();
+    });
+
+    if ('mediaSession' in navigator) {
+        ['play', 'pause', 'seekbackward', 'seekforward', 'seekto'].forEach(function (action) {
+            try {
+                navigator.mediaSession.setActionHandler(action, null);
+            } catch (e) {
+                return null;
+            }
+        });
+    }
+
+    player.addEventListener('enterpictureinpicture', function () {
+        if (document.pictureInPictureElement) {
+            document.exitPictureInPicture().catch(function () {
+                return null;
+            });
+        }
     });
 
     function updatePlayText() {
@@ -54,11 +83,18 @@
                 return;
             }
 
-            player.requestFullscreen().catch(function () {
-                return null;
-            });
+            var fullscreenTarget = playerWrap || player;
+            if (typeof fullscreenTarget.requestFullscreen === 'function') {
+                fullscreenTarget.requestFullscreen().catch(function () {
+                    return null;
+                });
+            }
         });
     }
+
+    player.addEventListener('webkitbeginfullscreen', function () {
+        player.pause();
+    });
 
     player.addEventListener('play', updatePlayText);
     player.addEventListener('pause', updatePlayText);
@@ -88,7 +124,23 @@
 
     document.addEventListener('keydown', function (event) {
         var key = (event.key || '').toLowerCase();
-        if ((event.ctrlKey || event.metaKey) && (key === 's' || key === 'u')) {
+        if ((event.ctrlKey || event.metaKey) && (key === 's' || key === 'u' || key === 'p')) {
+            event.preventDefault();
+            return;
+        }
+
+        if ((event.ctrlKey && event.shiftKey) && (key === 'i' || key === 'j' || key === 'c')) {
+            event.preventDefault();
+            return;
+        }
+
+        if (key === 'f12') {
+            event.preventDefault();
+        }
+    });
+
+    document.addEventListener('contextmenu', function (event) {
+        if (event.target === player || (playerWrap && playerWrap.contains(event.target))) {
             event.preventDefault();
         }
     });
