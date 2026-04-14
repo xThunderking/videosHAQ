@@ -69,7 +69,23 @@ if ($size === false) {
     exit('No se pudo leer el archivo');
 }
 
-$mime = (string) (mime_content_type($path) ?: 'application/octet-stream');
+$allowedMimeByExtension = [
+    'mp4' => 'video/mp4',
+    'webm' => 'video/webm',
+    'ogg' => 'video/ogg',
+];
+
+$videoMime = strtolower((string) ($video['mime_type'] ?? ''));
+if (in_array($videoMime, ALLOWED_VIDEO_MIME_TYPES, true)) {
+    $mime = $videoMime;
+} else {
+    $detectedMime = strtolower((string) (mime_content_type($path) ?: ''));
+    if (in_array($detectedMime, ALLOWED_VIDEO_MIME_TYPES, true)) {
+        $mime = $detectedMime;
+    } else {
+        $mime = $allowedMimeByExtension[$extension] ?? 'application/octet-stream';
+    }
+}
 
 $start = 0;
 $end = $size - 1;

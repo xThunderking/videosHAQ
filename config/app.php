@@ -690,7 +690,7 @@ function get_videos_for_area(string $area, ?int $limit = null, int $offset = 0):
         return [];
     }
 
-    $sql = 'SELECT id, title, stored_name FROM videos WHERE area_key = :area ORDER BY created_at DESC, id DESC';
+    $sql = 'SELECT id, title, stored_name, mime_type FROM videos WHERE area_key = :area ORDER BY created_at DESC, id DESC';
     if ($limit !== null && $limit > 0) {
         $sql .= ' LIMIT :limit OFFSET :offset';
     }
@@ -715,6 +715,7 @@ function get_videos_for_area(string $area, ?int $limit = null, int $offset = 0):
             'id' => (int) $row['id'],
             'title' => (string) $row['title'],
             'stored_name' => (string) $row['stored_name'],
+            'mime_type' => (string) ($row['mime_type'] ?? 'video/mp4'),
         ];
     }, $rows);
 }
@@ -744,7 +745,7 @@ function get_videos_grouped_by_areas(array $areaKeys): array
         $params[$name] = $key;
     }
 
-    $sql = 'SELECT id, area_key, title, stored_name FROM videos WHERE area_key IN (' . implode(', ', $placeholders) . ') ORDER BY area_key ASC, created_at DESC, id DESC';
+    $sql = 'SELECT id, area_key, title, stored_name, mime_type FROM videos WHERE area_key IN (' . implode(', ', $placeholders) . ') ORDER BY area_key ASC, created_at DESC, id DESC';
     $stmt = db()->prepare($sql);
     foreach ($params as $name => $value) {
         $stmt->bindValue($name, $value, PDO::PARAM_STR);
@@ -766,6 +767,7 @@ function get_videos_grouped_by_areas(array $areaKeys): array
             'id' => (int) $row['id'],
             'title' => (string) $row['title'],
             'stored_name' => (string) $row['stored_name'],
+            'mime_type' => (string) ($row['mime_type'] ?? 'video/mp4'),
         ];
     }
 
@@ -856,7 +858,7 @@ function get_video_by_id_for_area(int $videoId, string $area): ?array
         return null;
     }
 
-    $stmt = db()->prepare('SELECT id, area_key, title, stored_name FROM videos WHERE id = :id AND area_key = :area LIMIT 1');
+    $stmt = db()->prepare('SELECT id, area_key, title, stored_name, mime_type FROM videos WHERE id = :id AND area_key = :area LIMIT 1');
     $stmt->execute([
         'id' => $videoId,
         'area' => $area,
@@ -890,7 +892,7 @@ function get_video_by_id_admin(int $videoId): ?array
         return null;
     }
 
-    $stmt = db()->prepare('SELECT id, area_key, title, stored_name FROM videos WHERE id = :id LIMIT 1');
+    $stmt = db()->prepare('SELECT id, area_key, title, stored_name, mime_type FROM videos WHERE id = :id LIMIT 1');
     $stmt->execute(['id' => $videoId]);
     $row = $stmt->fetch();
 

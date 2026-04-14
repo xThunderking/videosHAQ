@@ -12,6 +12,16 @@
     }
 
     var streamToken = player.getAttribute('data-stream-token') || '';
+    var allowedMimeTypes = ['video/mp4', 'video/webm', 'video/ogg'];
+
+    function normalizeMimeType(mime) {
+        var normalized = String(mime || '').toLowerCase();
+        if (allowedMimeTypes.indexOf(normalized) !== -1) {
+            return normalized;
+        }
+
+        return 'video/mp4';
+    }
 
     player.controls = false;
     player.setAttribute('controlsList', 'nodownload noplaybackrate noremoteplayback');
@@ -107,8 +117,10 @@
             if (!id) {
                 return;
             }
+            var mime = normalizeMimeType(item.getAttribute('data-mime'));
 
             source.src = 'stream.php?id=' + encodeURIComponent(id) + '&token=' + encodeURIComponent(streamToken);
+            source.type = mime;
             player.load();
             player.play().catch(function () {
                 return null;

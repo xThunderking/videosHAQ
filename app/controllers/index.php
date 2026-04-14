@@ -115,6 +115,7 @@ $currentPage = 1;
 $totalPages = 1;
 $totalVideos = 0;
 $videos = [];
+$firstVideoMime = 'video/mp4';
 
 if ($hasAccess) {
     $requestedPage = (int) ($_GET['p'] ?? 1);
@@ -132,6 +133,10 @@ if ($hasAccess) {
 }
 
 $firstVideoId = isset($videos[0]['id']) ? (int) $videos[0]['id'] : 0;
+$firstVideoMimeCandidate = isset($videos[0]['mime_type']) ? strtolower((string) $videos[0]['mime_type']) : '';
+if (in_array($firstVideoMimeCandidate, ALLOWED_VIDEO_MIME_TYPES, true)) {
+    $firstVideoMime = $firstVideoMimeCandidate;
+}
 $availableAreas = get_video_areas(true);
 
 if ($hasAccess) {
@@ -249,7 +254,7 @@ send_security_headers();
             <?php else: ?>
                 <div class="player-wrap" id="playerWrap">
                     <video id="player" data-stream-token="<?php echo htmlspecialchars($streamToken, ENT_QUOTES, 'UTF-8'); ?>" disablePictureInPicture disableRemotePlayback controlsList="nodownload noplaybackrate noremoteplayback" playsinline preload="metadata" draggable="false">
-                        <source id="playerSource" src="stream.php?id=<?php echo $firstVideoId; ?>&token=<?php echo rawurlencode($streamToken); ?>" type="video/mp4">
+                        <source id="playerSource" src="stream.php?id=<?php echo $firstVideoId; ?>&token=<?php echo rawurlencode($streamToken); ?>" type="<?php echo htmlspecialchars($firstVideoMime, ENT_QUOTES, 'UTF-8'); ?>">
                         Tu navegador no soporta video HTML5.
                     </video>
                 </div>
@@ -272,6 +277,7 @@ send_security_headers();
                             class="video-item <?php echo $index === 0 ? 'active' : ''; ?>"
                             type="button"
                             data-id="<?php echo (int) $video['id']; ?>"
+                            data-mime="<?php echo htmlspecialchars((string) ($video['mime_type'] ?? 'video/mp4'), ENT_QUOTES, 'UTF-8'); ?>"
                         >
                             <span class="dot"></span>
                             <span><?php echo htmlspecialchars($video['title'], ENT_QUOTES, 'UTF-8'); ?></span>
