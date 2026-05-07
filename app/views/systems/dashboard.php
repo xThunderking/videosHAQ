@@ -1,17 +1,17 @@
+<?php
+$adminAreas = isset($adminAreas) && is_array($adminAreas) ? $adminAreas : [];
+$allVideos = isset($allVideos) && is_array($allVideos) ? $allVideos : [];
+?>
+
 <div class="systems-actions">
     <button type="button" class="player-btn systems-primary" data-open-modal="createAreaModal">Crear area</button>
     <button type="button" class="player-btn systems-secondary" data-open-modal="uploadVideoModal">Subir video</button>
-    <form method="post" class="inline-export-form">
-        <?php echo csrf_input(); ?>
-        <input type="hidden" name="action" value="export_area_keys">
-        <button type="submit" class="player-btn systems-tertiary">Exportar claves de las areas</button>
-    </form>
 </div>
 
 <section class="admin-col mt-10">
     <div class="section-head">
         <h3>Areas registradas</h3>
-        <p class="section-subtitle">Administra nombre, estado y codigo de cada area.</p>
+        <p class="section-subtitle">Administra nombre y estado de cada area.</p>
     </div>
     <div class="areas-table-wrap">
         <table class="areas-table">

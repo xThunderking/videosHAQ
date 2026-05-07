@@ -6,7 +6,6 @@
     var editAreaKey = document.getElementById('edit_area_key');
     var editAreaKeyView = document.getElementById('edit_area_key_view');
     var editAreaLabel = document.getElementById('edit_area_label');
-    var editAreaCode = document.getElementById('edit_area_code');
     var editAreaActive = document.getElementById('edit_area_active');
     var deleteAreaKey = document.getElementById('delete_area_key');
     var deleteAreaButton = document.getElementById('deleteAreaButton');
@@ -181,9 +180,6 @@
             if (editAreaLabel) {
                 editAreaLabel.value = areaLabel;
             }
-            if (editAreaCode) {
-                editAreaCode.value = '';
-            }
             if (editAreaActive) {
                 editAreaActive.checked = isActive;
                 editAreaActive.disabled = isSystems;
@@ -196,7 +192,7 @@
             }
             if (editAreaHint) {
                 if (isSystems) {
-                    editAreaHint.textContent = 'El area systems solo permite editar nombre/codigo.';
+                    editAreaHint.textContent = 'El area systems solo permite editar nombre y siempre permanece activa.';
                 } else if (hasVideos) {
                     editAreaHint.textContent = 'No se puede eliminar un area con videos registrados.';
                 } else {

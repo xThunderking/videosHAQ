@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="t d">
+  <title id="t">Logo Enfermeria</title>
+  <desc id="d">Corazon y cruz de cuidado</desc>
+  <defs>
+    <linearGradient id="gE" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0B7497"/>
+      <stop offset="100%" stop-color="#20B3BF"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="80" height="80" rx="20" fill="url(#gE)"/>
+  <path d="M48 72c-11-7-20-15-20-27 0-7 5-13 12-13 4 0 7 2 8 5 1-3 4-5 8-5 7 0 12 6 12 13 0 12-9 20-20 27z" fill="#EAF8FD"/>
+  <rect x="44" y="34" width="8" height="20" rx="3" fill="#0A6B96"/>
+  <rect x="38" y="40" width="20" height="8" rx="3" fill="#0A6B96"/>
+</svg>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once dirname(__DIR__, 2) . '/config/app.php';
 
 secure_session_start();
+ensure_portal_default_areas();
 
 $authError = '';
 $adminError = '';
@@ -43,12 +44,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         throttle_hit('systems_login');
-        $authError = 'Codigo de SISTEMAS incorrecto.';
+        $authError = 'Contrasena de SISTEMAS incorrecta.';
     }
 
     if ($action === 'systems_logout') {
         unset($_SESSION['systems_access']);
-        header('Location: systems.php');
+        header('Location: index.php');
         exit;
     }
 
@@ -59,155 +60,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ((bool) ($_SESSION['systems_access'] ?? false)) {
-        if ($action === 'export_area_keys') {
-            $rows = get_areas_for_admin();
-
-            $tableData = [];
-            $tableData[] = ['AREA', 'NOMBRE', 'CLAVE_ACCESO', 'ESTADO'];
-
-            foreach ($rows as $row) {
-                $areaKey = (string) $row['area_key'];
-                $code = get_area_code_secret($areaKey);
-                if ($code === '') {
-                    $code = 'NO DISPONIBLE (actualiza clave)';
-                }
-
-                $tableData[] = [
-                    $areaKey,
-                    (string) $row['area_label'],
-                    $code,
-                    (bool) $row['is_active'] ? 'ACTIVA' : 'INACTIVA',
-                ];
-            }
-
-            // Prefer native XLSX to avoid Excel warning about extension/content mismatch.
-            if (class_exists('ZipArchive')) {
-                $xlsxPath = tempnam(sys_get_temp_dir(), 'area_keys_');
-
-                if ($xlsxPath !== false) {
-                    $zip = new ZipArchive();
-
-                    if ($zip->open($xlsxPath, ZipArchive::OVERWRITE) === true) {
-                        $xmlEscape = static function (string $value): string {
-                            return htmlspecialchars($value, ENT_XML1 | ENT_COMPAT, 'UTF-8');
-                        };
-
-                        $sheetRowsXml = '';
-                        foreach ($tableData as $rIndex => $rowValues) {
-                            $rowNumber = $rIndex + 1;
-                            $sheetRowsXml .= '<row r="' . $rowNumber . '">';
-
-                            foreach ($rowValues as $cIndex => $value) {
-                                $columnLetter = chr(65 + $cIndex);
-                                $cellRef = $columnLetter . $rowNumber;
-                                $sheetRowsXml .= '<c r="' . $cellRef . '" t="inlineStr"><is><t>' . $xmlEscape((string) $value) . '</t></is></c>';
-                            }
-
-                            $sheetRowsXml .= '</row>';
-                        }
-
-                        $contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-                            . '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
-                            . '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
-                            . '<Default Extension="xml" ContentType="application/xml"/>'
-                            . '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
-                            . '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
-                            . '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
-                            . '</Types>';
-
-                        $rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-                            . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-                            . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
-                            . '</Relationships>';
-
-                        $workbook = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-                            . '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-                            . '<sheets><sheet name="ClavesAreas" sheetId="1" r:id="rId1"/></sheets>'
-                            . '</workbook>';
-
-                        $workbookRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-                            . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-                            . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
-                            . '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
-                            . '</Relationships>';
-
-                        $styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-                            . '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-                            . '<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>'
-                            . '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>'
-                            . '<borders count="1"><border/></borders>'
-                            . '<cellStyleXfs count="1"><xf/></cellStyleXfs>'
-                            . '<cellXfs count="1"><xf xfId="0"/></cellXfs>'
-                            . '</styleSheet>';
-
-                        $worksheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-                            . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-                            . '<sheetData>' . $sheetRowsXml . '</sheetData>'
-                            . '</worksheet>';
-
-                        $zip->addFromString('[Content_Types].xml', $contentTypes);
-                        $zip->addFromString('_rels/.rels', $rels);
-                        $zip->addFromString('xl/workbook.xml', $workbook);
-                        $zip->addFromString('xl/_rels/workbook.xml.rels', $workbookRels);
-                        $zip->addFromString('xl/styles.xml', $styles);
-                        $zip->addFromString('xl/worksheets/sheet1.xml', $worksheet);
-                        $zip->close();
-
-                        $filename = 'claves_areas_' . date('Ymd_His') . '.xlsx';
-                        header_remove('Content-Security-Policy');
-                        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-                        header('Content-Disposition: attachment; filename="' . $filename . '"');
-                        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-                        header('Pragma: no-cache');
-                        header('Expires: 0');
-                        header('Content-Length: ' . filesize($xlsxPath));
-
-                        readfile($xlsxPath);
-                        @unlink($xlsxPath);
-                        exit;
-                    }
-
-                    @unlink($xlsxPath);
-                }
-            }
-
-            // Fallback to CSV if XLSX cannot be built on this server.
-            header_remove('Content-Security-Policy');
-            header('Content-Type: text/csv; charset=UTF-8');
-            header('Content-Disposition: attachment; filename="claves_areas_' . date('Ymd_His') . '.csv"');
-            header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-            header('Pragma: no-cache');
-            header('Expires: 0');
-
-            $output = fopen('php://output', 'wb');
-            if ($output !== false) {
-                fwrite($output, "\xEF\xBB\xBF");
-                foreach ($tableData as $line) {
-                    fputcsv($output, $line);
-                }
-                fclose($output);
-            }
-
-            exit;
-        }
-
         if ($action === 'create_area') {
             $label = trim((string) ($_POST['new_area_label'] ?? ''));
             $requestedKey = strtolower(trim((string) ($_POST['new_area_key'] ?? '')));
-            $code = trim((string) ($_POST['new_area_code'] ?? ''));
             $isActive = isset($_POST['new_area_active']);
 
             $areaKey = $requestedKey !== '' ? $requestedKey : slugify_area_key($label);
 
-            if ($label === '' || $code === '') {
-                $adminError = 'Para crear un area debes ingresar nombre y codigo.';
+            if ($label === '') {
+                $adminError = 'Para crear un area debes ingresar el nombre.';
             } elseif (!preg_match('/^[a-z0-9-]{2,40}$/', $areaKey)) {
                 $adminError = 'La clave del area debe usar solo minusculas, numeros o guion (2 a 40 caracteres).';
             } elseif ($areaKey === SYSTEM_AREA_KEY) {
                 $adminError = 'La clave systems esta reservada.';
             } else {
                 try {
-                    $created = create_area($areaKey, $label, $code, $isActive);
+                    $created = create_area($areaKey, $label, $isActive);
                     if ($created) {
                         $folder = get_area_video_path($areaKey);
                         if (!is_dir($folder)) {
@@ -226,7 +94,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'update_area') {
             $areaKey = strtolower(trim((string) ($_POST['area_key'] ?? '')));
             $label = trim((string) ($_POST['area_label'] ?? ''));
-            $newCode = trim((string) ($_POST['area_code'] ?? ''));
             $isActive = $areaKey === SYSTEM_AREA_KEY ? true : isset($_POST['area_active']);
 
             if ($areaKey === '' || $label === '') {
@@ -235,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $adminError = 'No puedes desactivar el acceso SISTEMAS.';
             } else {
                 try {
-                    $updated = update_area($areaKey, $label, $newCode === '' ? null : $newCode, $isActive);
+                    $updated = update_area($areaKey, $label, $isActive);
                     if ($updated) {
                         $adminSuccess = 'Area actualizada correctamente.';
                     } else {
@@ -347,10 +214,11 @@ send_security_headers();
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>SISTEMAS - <?php echo APP_NAME; ?></title>
+    <link rel="icon" type="image/png" href="logohaq1.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="public/assets/css/main.css?v=20260330-3">
+    <link rel="stylesheet" href="public/assets/css/main.css?v=20260507-1">
 </head>
 <body class="systems-page">
 <div class="bg-layer"></div>
@@ -358,14 +226,14 @@ send_security_headers();
     <?php if (!$systemsAccess): ?>
         <section class="card login-card systems-login-card">
             <h2>Acceso SISTEMAS</h2>
-            <p>Ingresa el codigo de SISTEMAS para administrar videos.</p>
+            <p>Ingresa la contrasena de SISTEMAS para administrar videos.</p>
             <?php if ($authError !== ''): ?>
                 <div class="alert"><?php echo htmlspecialchars($authError, ENT_QUOTES, 'UTF-8'); ?></div>
             <?php endif; ?>
             <form method="post" class="systems-login-form" autocomplete="off">
                 <?php echo csrf_input(); ?>
                 <input type="hidden" name="action" value="systems_login">
-                <label for="systems_code">Codigo SISTEMAS</label>
+                <label for="systems_code">Contrasena SISTEMAS</label>
                 <input id="systems_code" name="systems_code" type="password" required>
                 <button type="submit">Ingresar a SISTEMAS</button>
             </form>
@@ -408,7 +276,7 @@ send_security_headers();
 </main>
 <?php if ($systemsAccess): ?>
 <div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="true"></div>
-<script src="public/assets/js/systems.js?v=20260330-2"></script>
+<script src="public/assets/js/systems.js?v=20260507-1"></script>
 <?php endif; ?>
 </body>
 </html>

@@ -1,13 +1,20 @@
 (function () {
     var player = document.getElementById('player');
     var playerWrap = document.getElementById('playerWrap');
+    var playerPanel = document.getElementById('videoPlayerPanel');
     var source = document.getElementById('playerSource');
-    var list = document.querySelectorAll('.video-item');
+    var cards = document.querySelectorAll('.video-card-item');
     var playToggle = document.getElementById('playToggle');
+    var rewindToggle = document.getElementById('rewindToggle');
+    var forwardToggle = document.getElementById('forwardToggle');
     var volumeControl = document.getElementById('volumeControl');
     var fullscreenToggle = document.getElementById('fullscreenToggle');
+    var selectedVideoTitle = document.getElementById('selectedVideoTitle');
+    var seekControl = document.getElementById('seekControl');
+    var seekCurrent = document.getElementById('seekCurrent');
+    var seekDuration = document.getElementById('seekDuration');
 
-    if (!player || !source || list.length === 0) {
+    if (!player || !source || cards.length === 0) {
         return;
     }
 
@@ -21,6 +28,73 @@
         }
 
         return 'video/mp4';
+    }
+
+    function formatTime(seconds) {
+        var safeSeconds = Number(seconds);
+        if (!isFinite(safeSeconds) || safeSeconds < 0) {
+            safeSeconds = 0;
+        }
+
+        var total = Math.floor(safeSeconds);
+        var minutes = Math.floor(total / 60);
+        var secs = total % 60;
+
+        return String(minutes).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+    }
+
+    function updateSeekUI() {
+        if (!seekControl) {
+            return;
+        }
+
+        var duration = Number(player.duration);
+        var current = Number(player.currentTime);
+
+        if (!isFinite(duration) || duration <= 0) {
+            seekControl.value = '0';
+            if (seekCurrent) {
+                seekCurrent.textContent = '00:00';
+            }
+            if (seekDuration) {
+                seekDuration.textContent = '00:00';
+            }
+            return;
+        }
+
+        var progress = Math.floor((current / duration) * 1000);
+        if (progress < 0) {
+            progress = 0;
+        }
+        if (progress > 1000) {
+            progress = 1000;
+        }
+
+        seekControl.value = String(progress);
+
+        if (seekCurrent) {
+            seekCurrent.textContent = formatTime(current);
+        }
+        if (seekDuration) {
+            seekDuration.textContent = formatTime(duration);
+        }
+    }
+
+    function jumpSeconds(delta) {
+        var duration = Number(player.duration);
+        if (!isFinite(duration) || duration <= 0) {
+            return;
+        }
+
+        var target = Number(player.currentTime) + delta;
+        if (target < 0) {
+            target = 0;
+        }
+        if (target > duration) {
+            target = duration;
+        }
+
+        player.currentTime = target;
     }
 
     player.controls = false;
@@ -93,12 +167,36 @@
                 return;
             }
 
-            var fullscreenTarget = playerWrap || player;
+            var fullscreenTarget = playerPanel || playerWrap || player;
             if (typeof fullscreenTarget.requestFullscreen === 'function') {
                 fullscreenTarget.requestFullscreen().catch(function () {
                     return null;
                 });
             }
+        });
+    }
+
+    if (rewindToggle) {
+        rewindToggle.addEventListener('click', function () {
+            jumpSeconds(-10);
+        });
+    }
+
+    if (forwardToggle) {
+        forwardToggle.addEventListener('click', function () {
+            jumpSeconds(10);
+        });
+    }
+
+    if (seekControl) {
+        seekControl.addEventListener('input', function () {
+            var duration = Number(player.duration);
+            if (!isFinite(duration) || duration <= 0) {
+                return;
+            }
+
+            var ratio = Number(seekControl.value) / 1000;
+            player.currentTime = Math.max(0, Math.min(duration, ratio * duration));
         });
     }
 
@@ -109,28 +207,49 @@
     player.addEventListener('play', updatePlayText);
     player.addEventListener('pause', updatePlayText);
     player.addEventListener('ended', updatePlayText);
+    player.addEventListener('timeupdate', updateSeekUI);
+    player.addEventListener('loadedmetadata', updateSeekUI);
+    player.addEventListener('seeking', updateSeekUI);
+    player.addEventListener('seeked', updateSeekUI);
     updatePlayText();
+    updateSeekUI();
 
-    list.forEach(function (item) {
-        item.addEventListener('click', function () {
-            var id = item.getAttribute('data-id');
+    cards.forEach(function (card) {
+        card.addEventListener('click', function () {
+            var id = card.getAttribute('data-id');
             if (!id) {
                 return;
             }
-            var mime = normalizeMimeType(item.getAttribute('data-mime'));
+            var mime = normalizeMimeType(card.getAttribute('data-mime'));
+            var title = card.getAttribute('data-title') || 'Video';
 
             source.src = 'stream.php?id=' + encodeURIComponent(id) + '&token=' + encodeURIComponent(streamToken);
             source.type = mime;
+
+            if (selectedVideoTitle) {
+                selectedVideoTitle.textContent = title;
+            }
+
+            if (playerPanel) {
+                playerPanel.classList.remove('hidden');
+            }
+
             player.load();
             player.play().catch(function () {
                 return null;
             });
-            updatePlayText();
 
-            list.forEach(function (other) {
+            updatePlayText();
+            updateSeekUI();
+
+            cards.forEach(function (other) {
                 other.classList.remove('active');
             });
-            item.classList.add('active');
+            card.classList.add('active');
+
+            if (playerPanel && typeof playerPanel.scrollIntoView === 'function') {
+                playerPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
         });
     });
 

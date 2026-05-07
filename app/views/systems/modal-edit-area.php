@@ -16,9 +16,6 @@
             <label for="edit_area_label">Nombre</label>
             <input id="edit_area_label" name="area_label" type="text" required>
 
-            <label for="edit_area_code">Nuevo codigo (opcional)</label>
-            <input id="edit_area_code" name="area_code" type="password" placeholder="Dejar vacio para mantener codigo actual">
-
             <label class="check-inline">
                 <input type="checkbox" id="edit_area_active" name="area_active">
                 Activa

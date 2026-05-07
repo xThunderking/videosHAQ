@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="#2F64D6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Direccion General">
+  <path d="M12 24l20-10 20 10"/>
+  <path d="M16 24v24M48 24v24"/>
+  <path d="M22 24v24M32 24v24M42 24v24"/>
+  <path d="M10 48h44"/>
+</svg>

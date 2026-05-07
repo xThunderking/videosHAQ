@@ -1,16 +1,12 @@
 # videosHAQ
 
-Sistema para visualizacion de videos por areas con acceso por codigo.
+Sistema interno para visualizacion de videos por areas con acceso visual por tarjetas.
 
-## Areas activas
+## Modelo de acceso actual
 
-- Admision
-- Calidad
-- Enfermeria
-
-Tambien incluye acceso especial:
-
-- SISTEMAS (subida de videos por area)
+- El portal principal muestra tarjetas por area: Admision, Calidad, DO, Enfermeria y Direccion Gral.
+- El acceso a cada area de visualizacion es directo (sin codigo por area).
+- La tarjeta de SISTEMAS es la unica que solicita contrasena para entrar al panel de administracion y subida de videos.
 
 ## Requisitos
 
@@ -23,43 +19,36 @@ Tambien incluye acceso especial:
 - `index.php`, `systems.php`, `stream.php`, `upload_chunk.php`: entrypoints en raiz
 - `app/controllers/`: controladores principales
 - `app/views/systems/`: componentes y modales de SISTEMAS
-- `config/app.php`: configuracion de DB, areas, codigos y rutas
-- `public/assets/css/main.css`: estilos
+- `config/app.php`: configuracion de DB, seguridad y rutas
+- `public/assets/css/main.css`: estilos del portal y panel
 - `public/assets/js/player.js`: JS del reproductor
+- `public/assets/js/portal.js`: JS de notificaciones del portal
 - `public/assets/js/systems.js`: JS del panel SISTEMAS
-- `database/schema.sql`: script SQL de tablas y codigos iniciales
+- `public/assets/img/areas/`: logos SVG por tarjeta
+- `database/schema.sql`: script SQL de tablas y datos base
 - `D:/VIDEOSHAQ/`: almacenamiento privado por area (fuera del proyecto)
 
 ## Configurar MySQL
 
-1. Crea/importa base de datos ejecutando `database/schema.sql` en phpMyAdmin.
+1. Importa `database/schema.sql` en phpMyAdmin.
 2. Verifica credenciales en `config/app.php`:
-	- `DB_HOST`
-	- `DB_PORT`
-	- `DB_NAME`
-	- `DB_USER`
-	- `DB_PASS`
+   - `DB_HOST`
+   - `DB_PORT`
+   - `DB_NAME`
+   - `DB_USER`
+   - `DB_PASS`
 
-## Codigos iniciales
+## Contrasena inicial de SISTEMAS
 
-Definidos en la tabla `area_codes` (script `database/schema.sql`):
+Definida en la tabla `area_codes` dentro de `database/schema.sql`:
 
-- Admision: `ADM-HAQ-2026`
-- Calidad: `CAL-HAQ-2026`
-- Enfermeria: `ENF-HAQ-2026`
 - Sistemas: `SIS-HAQ-2026`
 
 ## Cargar videos
 
-Coloca los videos en estas carpetas:
+Puedes cargar videos desde `systems.php` una vez autenticado en SISTEMAS.
 
-- `D:/VIDEOSHAQ/admision/`
-- `D:/VIDEOSHAQ/calidad/`
-- `D:/VIDEOSHAQ/enfermeria/`
-
-Tambien puedes subirlos desde `systems.php` con el codigo de SISTEMAS.
-
-La subida en SISTEMAS se hace por bloques (chunks) para soportar videos muy pesados (por ejemplo 2GB+).
+La subida se realiza por bloques (chunks) para soportar videos grandes.
 
 Formatos permitidos:
 
@@ -71,19 +60,13 @@ Formatos permitidos:
 
 1. Inicia Apache en XAMPP.
 2. Inicia MySQL en XAMPP.
-3. Importa `database/schema.sql` (si aun no lo hiciste).
-4. Abre en navegador: `http://localhost/videosHAQ/`.
-5. Selecciona area e ingresa el codigo.
+3. Importa `database/schema.sql`.
+4. Abre `http://localhost/videosHAQ/`.
+5. Elige una tarjeta de area para visualizar videos o la tarjeta de SISTEMAS para administrar contenido.
 
-Para administracion:
+## Ajustes recomendados para videos grandes
 
-- Abre `http://localhost/videosHAQ/systems.php`
-- Ingresa codigo de SISTEMAS
-- Sube videos por area
-
-## Ajustes para videos de 2GB o mas
-
-Aunque la subida es por bloques, revisa en `php.ini` para evitar cortes por limite de peticion/tiempo:
+Revisa en `php.ini`:
 
 - `upload_max_filesize = 64M`
 - `post_max_size = 64M`
@@ -95,15 +78,12 @@ Despues reinicia Apache.
 
 ## Seguridad implementada
 
-- Acceso por area + codigo.
-- Acceso separado para SISTEMAS.
-- Codigos y enlaces de videos almacenados en MySQL.
-- Los videos no se exponen como archivos publicos directos.
-- Carpeta de videos en `D:/VIDEOSHAQ/` (fuera del webroot, no expuesta directamente).
-- Reproduccion via `stream.php` con sesion activa.
-- Se oculto boton de descarga en el reproductor (`nodownload`).
+- Sesiones seguras con regeneracion periodica de ID.
+- CSRF en formularios y subida por chunks.
+- Acceso protegido para panel de SISTEMAS con contrasena.
+- Videos fuera del webroot en `D:/VIDEOSHAQ/`.
+- Reproduccion via `stream.php` con token de sesion temporal.
 
-## Nota importante
+## Nota
 
-En web no existe bloqueo 100% infalible contra descarga/captura de contenido.
-Este sistema reduce fuertemente el acceso directo y la descarga casual, pero un usuario avanzado aun podria capturar el video por otros medios.
+No existe bloqueo 100% infalible contra captura de contenido en la web. Este sistema reduce acceso directo y descarga casual, pero no elimina todos los vectores de captura avanzada.

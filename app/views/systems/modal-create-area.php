@@ -14,9 +14,6 @@
             <label for="new_area_key">Clave interna (opcional)</label>
             <input id="new_area_key" name="new_area_key" type="text" placeholder="ejemplo: laboratorio">
 
-            <label for="new_area_code">Codigo de acceso</label>
-            <input id="new_area_code" name="new_area_code" type="password" required>
-
             <label class="check-inline"><input type="checkbox" name="new_area_active" checked> Activa para visualizacion</label>
             <button type="submit" class="player-btn">Crear area</button>
         </form>

@@ -625,6 +625,58 @@ function get_areas_for_admin(): array
     }, $rows);
 }
 
+function get_portal_area_catalog(): array
+{
+    return [
+        ['area_key' => 'admision', 'area_label' => 'Admision'],
+        ['area_key' => 'calidad', 'area_label' => 'Calidad'],
+        ['area_key' => 'do', 'area_label' => 'DO'],
+        ['area_key' => 'enfermeria', 'area_label' => 'Enfermeria'],
+        ['area_key' => 'direccion-gral', 'area_label' => 'Direccion Gral'],
+    ];
+}
+
+function ensure_portal_default_areas(): void
+{
+    $existingStmt = db()->query('SELECT area_key FROM area_codes');
+    $existingRows = $existingStmt->fetchAll(PDO::FETCH_COLUMN);
+    $existingKeys = [];
+
+    if (is_array($existingRows)) {
+        foreach ($existingRows as $rowKey) {
+            $key = strtolower(trim((string) $rowKey));
+            if ($key !== '') {
+                $existingKeys[$key] = true;
+            }
+        }
+    }
+
+    $insertStmt = db()->prepare(
+        'INSERT INTO area_codes (area_key, area_label, code_hash, is_active)
+         VALUES (:area_key, :area_label, :code_hash, 1)'
+    );
+
+    foreach (get_portal_area_catalog() as $area) {
+        $areaKey = (string) ($area['area_key'] ?? '');
+        $areaLabel = (string) ($area['area_label'] ?? '');
+
+        if ($areaKey === '' || $areaLabel === '' || $areaKey === SYSTEM_AREA_KEY) {
+            continue;
+        }
+
+        if (isset($existingKeys[$areaKey])) {
+            continue;
+        }
+
+        $insertStmt->execute([
+            'area_key' => $areaKey,
+            'area_label' => $areaLabel,
+            // Legacy column kept for compatibility, but per-area code login is disabled.
+            'code_hash' => hash('sha256', 'NO-LOGIN-' . $areaKey . '-HAQ'),
+        ]);
+    }
+}
+
 function validate_area_access(string $area, string $code): bool
 {
     if (!is_known_area($area) || $code === '') {
@@ -783,47 +835,23 @@ function slugify_area_key(string $label): string
     return $value;
 }
 
-function create_area(string $areaKey, string $areaLabel, string $code, bool $isActive = true): bool
+function create_area(string $areaKey, string $areaLabel, bool $isActive = true): bool
 {
     $stmt = db()->prepare(
         'INSERT INTO area_codes (area_key, area_label, code_hash, is_active) VALUES (:area_key, :area_label, :code_hash, :is_active)'
     );
 
-    $created = $stmt->execute([
+    return $stmt->execute([
         'area_key' => $areaKey,
         'area_label' => $areaLabel,
-        'code_hash' => password_hash($code, PASSWORD_DEFAULT),
+        // Legacy column kept for compatibility, but per-area code login is disabled.
+        'code_hash' => hash('sha256', 'NO-LOGIN-' . $areaKey . '-HAQ'),
         'is_active' => $isActive ? 1 : 0,
     ]);
-
-    if ($created) {
-        set_area_code_secret($areaKey, $code);
-    }
-
-    return $created;
 }
 
-function update_area(string $areaKey, string $areaLabel, ?string $newCode, bool $isActive): bool
+function update_area(string $areaKey, string $areaLabel, bool $isActive): bool
 {
-    if ($newCode !== null && $newCode !== '') {
-        $stmt = db()->prepare(
-            'UPDATE area_codes SET area_label = :area_label, code_hash = :code_hash, is_active = :is_active WHERE area_key = :area_key LIMIT 1'
-        );
-
-        $updated = $stmt->execute([
-            'area_label' => $areaLabel,
-            'code_hash' => password_hash($newCode, PASSWORD_DEFAULT),
-            'is_active' => $isActive ? 1 : 0,
-            'area_key' => $areaKey,
-        ]);
-
-        if ($updated) {
-            set_area_code_secret($areaKey, $newCode);
-        }
-
-        return $updated;
-    }
-
     $stmt = db()->prepare(
         'UPDATE area_codes SET area_label = :area_label, is_active = :is_active WHERE area_key = :area_key LIMIT 1'
     );

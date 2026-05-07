@@ -1,11 +1,10 @@
 (function () {
-    var openButton = document.getElementById('openRequestCodeModal');
-    var modal = document.getElementById('requestCodeModal');
-    var closeButton = document.querySelector('[data-close-request-modal]');
     var toastStack = document.getElementById('toastStack');
     var toastError = document.getElementById('portalToastError');
     var toastSuccess = document.getElementById('portalToastSuccess');
-    var lastTrigger = null;
+    var systemsOpenTrigger = document.querySelector('[data-open-systems-modal]');
+    var systemsModal = document.getElementById('systemsAccessModal');
+    var systemsModalClose = document.querySelector('[data-close-systems-modal]');
 
     function showToast(message, kind, durationMs) {
         if (!message) {
@@ -45,56 +44,58 @@
         showToast(toastSuccess.getAttribute('data-toast-message') || '', 'success', 4200);
     }
 
-    if (!openButton || !modal || !closeButton) {
+    if (!systemsOpenTrigger || !systemsModal || !systemsModalClose) {
         return;
     }
 
-    function openModal() {
-        modal.classList.remove('hidden');
-        document.body.classList.add('modal-open');
-
-        var modalCard = modal.querySelector('.modal-card');
-        if (modalCard) {
-            modalCard.scrollTop = 0;
-        }
-
-        var firstFocusable = modal.querySelector('input:not([type="hidden"]), select, textarea, button:not([disabled])');
-        if (firstFocusable) {
+    function focusFirstInput() {
+        var firstInput = systemsModal.querySelector('input:not([type="hidden"]), button:not([disabled])');
+        if (firstInput) {
             window.setTimeout(function () {
-                firstFocusable.focus();
+                firstInput.focus();
             }, 0);
         }
     }
 
-    function closeModal() {
-        modal.classList.add('hidden');
+    function openSystemsModal() {
+        systemsModal.classList.remove('hidden');
+        document.body.classList.add('modal-open');
+        focusFirstInput();
+    }
+
+    function closeSystemsModal() {
+        systemsModal.classList.add('hidden');
         document.body.classList.remove('modal-open');
 
-        if (lastTrigger && typeof lastTrigger.focus === 'function') {
+        if (systemsOpenTrigger && typeof systemsOpenTrigger.focus === 'function') {
             window.setTimeout(function () {
-                lastTrigger.focus();
+                systemsOpenTrigger.focus();
             }, 0);
         }
     }
 
-    openButton.addEventListener('click', function () {
-        lastTrigger = openButton;
-        openModal();
+    if (!systemsModal.classList.contains('hidden')) {
+        document.body.classList.add('modal-open');
+        focusFirstInput();
+    }
+
+    systemsOpenTrigger.addEventListener('click', function () {
+        openSystemsModal();
     });
 
-    closeButton.addEventListener('click', function () {
-        closeModal();
+    systemsModalClose.addEventListener('click', function () {
+        closeSystemsModal();
     });
 
-    modal.addEventListener('click', function (event) {
-        if (event.target === modal) {
-            closeModal();
+    systemsModal.addEventListener('click', function (event) {
+        if (event.target === systemsModal) {
+            closeSystemsModal();
         }
     });
 
     document.addEventListener('keydown', function (event) {
-        if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
-            closeModal();
+        if (event.key === 'Escape' && !systemsModal.classList.contains('hidden')) {
+            closeSystemsModal();
         }
     });
 })();

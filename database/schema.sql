@@ -29,9 +29,11 @@ CREATE TABLE IF NOT EXISTS videos (
 
 INSERT INTO area_codes (area_key, area_label, code_hash)
 VALUES
-    ('admision', 'Admision', SHA2('ADM-HAQ-2026', 256)),
-    ('calidad', 'Calidad', SHA2('CAL-HAQ-2026', 256)),
-    ('enfermeria', 'Enfermeria', SHA2('ENF-HAQ-2026', 256)),
+    ('admision', 'Admision', SHA2('NO-LOGIN-ADMISION', 256)),
+    ('calidad', 'Calidad', SHA2('NO-LOGIN-CALIDAD', 256)),
+    ('do', 'DO', SHA2('NO-LOGIN-DO', 256)),
+    ('enfermeria', 'Enfermeria', SHA2('NO-LOGIN-ENFERMERIA', 256)),
+    ('direccion-gral', 'Direccion Gral', SHA2('NO-LOGIN-DIRECCION', 256)),
     ('systems', 'Sistemas', SHA2('SIS-HAQ-2026', 256))
 ON DUPLICATE KEY UPDATE
     area_label = VALUES(area_label),
